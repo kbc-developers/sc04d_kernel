@@ -74,6 +74,9 @@ return_from_irq:
 	b	label_smc
 
 label_smc:
+#ifdef HAVE_ARCH_EXTENTSION
+	.arch_extension sec
+#endif
 	INVALIDATE_BTB
 	dsb
 	dmb

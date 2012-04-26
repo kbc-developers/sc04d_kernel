@@ -5,6 +5,9 @@ DEVICEDIR=/sdcard/AROM
 KNAME=kernel.cyano.RELEASE
 DEVICE_CM_DIR=$ANDROID_BUILD_TOP/device/samsung/${BOARD}
 
+# generate LOCALVERSION
+. mod_version
+
 WaitForDevice()
 {
     adb start-server
