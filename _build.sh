@@ -1,8 +1,6 @@
 #!/bin/bash
 
 KERNEL_DIR=$PWD
-INITRAMFS_SRC_DIR=../sc04d_initramfs
-INITRAMFS_TMP_DIR=/tmp/sc04d_initramfs
 
 cpoy_initramfs()
 {
@@ -32,12 +30,28 @@ echo "=====> BUILD START $BUILD_KERNELVERSION-$BUILD_LOCALVERSION"
 
 if [ ! -n "$1" ]; then
   echo ""
+  read -p "select build? [(b)oot/(r)ecovery default:boot] " BUILD_TARGET
+else
+  BUILD_TARGET=$1
+fi
+
+if [ ! -n "$2" ]; then
+  echo ""
   read -p "select build? [(a)ll/(u)pdate/(z)Image default:update] " BUILD_SELECT
 else
-  BUILD_SELECT=$1
+  BUILD_SELECT=$2
 fi
 
 # copy initramfs
+if [ "$BUILD_TARGET" = 'recovery' -o "$BUILD_TARGET" = 'r' ]; then
+  INITRAMFS_SRC_DIR=../sc04d_recoveryfs
+  INITRAMFS_TMP_DIR=/tmp/sc04d_recoveryfs
+  IMAGE_NAME=recovery
+else
+  INITRAMFS_SRC_DIR=../sc04d_rootfs
+  INITRAMFS_TMP_DIR=/tmp/sc04d_rootfs
+  IMAGE_NAME=boot
+fi
 echo ""
 echo "=====> copy initramfs"
 cpoy_initramfs
@@ -90,8 +104,8 @@ if [ `find ./$OUTPUT_DIR -type f | wc -l` -gt 0 ]; then
 fi
 
 # copy zImage
-cp arch/arm/boot/zImage ./$OUTPUT_DIR/boot.img
-echo "  $OUTPUT_DIR/boot.img"
+cp arch/arm/boot/zImage ./$OUTPUT_DIR/$IMAGE_NAME.img
+echo "  $OUTPUT_DIR/$IMAGE_NAME.img"
 
 # create cwm image
 cd $KERNEL_DIR/$OUTPUT_DIR
@@ -99,15 +113,15 @@ if [ -d tmp ]; then
   rm -rf tmp
 fi
 mkdir -p tmp/META-INF/com/google/android
-cp boot.img ./tmp/
+cp $IMAGE_NAME.img ./tmp/
 cp $KERNEL_DIR/release-tools/update-binary $KERNEL_DIR/$OUTPUT_DIR/tmp/META-INF/com/google/android/
-sed -e "s/@VERSION/$BUILD_LOCALVERSION/g" $KERNEL_DIR/release-tools/updater-script.sed > $KERNEL_DIR/$OUTPUT_DIR/tmp/META-INF/com/google/android/updater-script
+sed -e "s/@VERSION/$BUILD_LOCALVERSION/g" $KERNEL_DIR/release-tools/updater-script-$IMAGE_NAME.sed > $KERNEL_DIR/$OUTPUT_DIR/tmp/META-INF/com/google/android/updater-script
 cd tmp && zip -rq ../cwm.zip ./* && cd ../
 SIGNAPK_DIR=$KERNEL_DIR/release-tools/signapk
-java -jar $SIGNAPK_DIR/signapk.jar $SIGNAPK_DIR/testkey.x509.pem $SIGNAPK_DIR/testkey.pk8 cwm.zip $BUILD_LOCALVERSION-signed.zip
+java -jar $SIGNAPK_DIR/signapk.jar $SIGNAPK_DIR/testkey.x509.pem $SIGNAPK_DIR/testkey.pk8 cwm.zip $BUILD_LOCALVERSION-$IMAGE_NAME-signed.zip
 rm cwm.zip
 rm -rf tmp
-echo "  $OUTPUT_DIR/$BUILD_LOCALVERSION-signed.zip"
+echo "  $OUTPUT_DIR/$BUILD_LOCALVERSION-$IMAGE_NAME-signed.zip"
 
 cd $KERNEL_DIR
 echo ""

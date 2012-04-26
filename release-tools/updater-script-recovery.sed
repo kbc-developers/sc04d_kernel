@@ -8,8 +8,8 @@ ui_print("------------------------------------------------");
 ui_print("");
 show_progress(0.500000, 0);
 
-ui_print("flashing kernel image...");
-package_extract_file("boot.img", "/dev/block/platform/omap/omap_hsmmc.0/by-name/boot");
+ui_print("flashing recovery image...");
+package_extract_file("boot.img", "/dev/block/platform/omap/omap_hsmmc.0/by-name/recovery");
 show_progress(0.100000, 0);
 
 ui_print("flash complete. Enjoy!");
