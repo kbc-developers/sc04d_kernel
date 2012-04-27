@@ -37,7 +37,7 @@ fi
 
 if [ ! -n "$2" ]; then
   echo ""
-  read -p "select build? [(a)ll/(u)pdate/(z)Image default:update] " BUILD_SELECT
+  read -p "select build? [(a)ll/(u)pdate/(i)mage default:update] " BUILD_SELECT
 else
   BUILD_SELECT=$2
 fi
@@ -66,7 +66,7 @@ if [ "$BUILD_SELECT" = 'all' -o "$BUILD_SELECT" = 'a' ]; then
   make -C $PWD oldconfig || exit -1
 fi
 
-if [ "$BUILD_SELECT" != 'zImage' -a "$BUILD_SELECT" != 'z' ]; then
+if [ "$BUILD_SELECT" != 'image' -a "$BUILD_SELECT" != 'i' ]; then
   echo ""
   echo "=====> build start"
   if [ -e make.log ]; then
