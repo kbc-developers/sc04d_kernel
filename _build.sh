@@ -87,25 +87,22 @@ fi
 # *.ko replace
 find -name '*.ko' -exec cp -av {} $INITRAMFS_TMP_DIR/lib/modules/ \;
 
-# build zImage
-echo ""
-echo "=====> make zImage"
-nice -n 10 make -j2 zImage CONFIG_INITRAMFS_SOURCE="$INITRAMFS_TMP_DIR" CONFIG_INITRAMFS_ROOT_UID=`id -u` CONFIG_INITRAMFS_ROOT_GID=`id -g` || exit 1
-
-if [ ! -e $OUTPUT_DIR ]; then
-  mkdir -p $OUTPUT_DIR
-fi
-
 echo ""
 echo "=====> CREATE RELEASE IMAGE"
+mkdir -p $KERNEL_DIR/$OUTPUT_DIR
 # clean release dir
 if [ `find ./$OUTPUT_DIR -type f | wc -l` -gt 0 ]; then
   rm $KERNEL_DIR/$OUTPUT_DIR/*
 fi
 
 # copy zImage
-cp arch/arm/boot/zImage ./$OUTPUT_DIR/$IMAGE_NAME.img
-echo "  $OUTPUT_DIR/$IMAGE_NAME.img"
+cp arch/arm/boot/zImage ./$OUTPUT_DIR/kernel
+echo "----- Making uncompressed $IMAGE_NAME ramdisk ------"
+./release-tools/mkbootfs $INITRAMFS_TMP_DIR > $OUTPUT_DIR/ramdisk-$IMAGE_NAME.cpio
+echo "----- Making $IMAGE_NAME ramdisk ------"
+./release-tools/minigzip < $OUTPUT_DIR/ramdisk-$IMAGE_NAME.cpio > $OUTPUT_DIR/ramdisk-$IMAGE_NAME.img
+echo "----- Making $IMAGE_NAME image ------"
+./release-tools/mkbootimg  --kernel $OUTPUT_DIR/kernel  --ramdisk $OUTPUT_DIR/ramdisk-$IMAGE_NAME.img --base 0x80000000 --output $OUTPUT_DIR/$IMAGE_NAME.img
 
 # create cwm image
 cd $KERNEL_DIR/$OUTPUT_DIR
