@@ -1,0 +1,5 @@
+config J4FS
+	tristate "Samsung J4FS support"
+	default m
+	help
+	  Say Y to enable Samsung J4FS support.
