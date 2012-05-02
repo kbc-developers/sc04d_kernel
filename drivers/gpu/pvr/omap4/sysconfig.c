@@ -337,7 +337,11 @@ PVRSRV_ERROR SysInitialise(IMG_VOID)
 #if !defined(SGX_DYNAMIC_TIMING_INFO)
 	
 	psTimingInfo = &gsSGXDeviceMap.sTimingInfo;
+#ifdef CONFIG_GPU_OVERCLOCK
+	psTimingInfo->ui32CoreClockSpeed = SYS_SGX_OVERCLOCK_SPEED;
+#else
 	psTimingInfo->ui32CoreClockSpeed = SYS_SGX_CLOCK_SPEED;
+#endif
 	psTimingInfo->ui32HWRecoveryFreq = SYS_SGX_HWRECOVERY_TIMEOUT_FREQ; 
 #if defined(SUPPORT_ACTIVE_POWER_MANAGEMENT)
 	psTimingInfo->bEnableActivePM = IMG_TRUE;
