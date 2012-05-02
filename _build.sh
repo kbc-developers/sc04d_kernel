@@ -13,7 +13,11 @@ cpoy_initramfs()
 }
 
 BUILD_DEFCONFIG=sc04d_defconfig
-OUTPUT_DIR=out
+BIN_DIR=out/bin
+OBJ_DIR=out/obj
+
+mkdir -p $BIN_DIR
+mkdir -p $OBJ_DIR
 
 # generate LOCALVERSION
 . mod_version
@@ -62,8 +66,8 @@ if [ "$BUILD_SELECT" = 'all' -o "$BUILD_SELECT" = 'a' ]; then
   echo ""
   echo "=====> cleaning"
   make clean
-  cp -f ./arch/arm/configs/$BUILD_DEFCONFIG ./.config
-  make -C $PWD oldconfig || exit -1
+  cp -f ./arch/arm/configs/$BUILD_DEFCONFIG $OBJ_DIR/.config
+  make -C $PWD O=$OBJ_DIR oldconfig || exit -1
 fi
 
 if [ "$BUILD_SELECT" != 'image' -a "$BUILD_SELECT" != 'i' ]; then
@@ -72,7 +76,7 @@ if [ "$BUILD_SELECT" != 'image' -a "$BUILD_SELECT" != 'i' ]; then
   if [ -e make.log ]; then
     mv make.log make_old.log
   fi
-  nice -n 10 make -j12 2>&1 | tee make.log
+  nice -n 10 make O=$OBJ_DIR -j12 2>&1 | tee make.log
 fi
 
 # check compile error
@@ -89,36 +93,35 @@ find -name '*.ko' -exec cp -av {} $INITRAMFS_TMP_DIR/lib/modules/ \;
 
 echo ""
 echo "=====> CREATE RELEASE IMAGE"
-mkdir -p $KERNEL_DIR/$OUTPUT_DIR
 # clean release dir
-if [ `find ./$OUTPUT_DIR -type f | wc -l` -gt 0 ]; then
-  rm $KERNEL_DIR/$OUTPUT_DIR/*
+if [ `find $BIN_DIR -type f | wc -l` -gt 0 ]; then
+  rm $BIN_DIR/*
 fi
 
 # copy zImage
-cp arch/arm/boot/zImage ./$OUTPUT_DIR/kernel
+cp $OBJ_DIR/arch/arm/boot/zImage $BIN_DIR/kernel
 echo "----- Making uncompressed $IMAGE_NAME ramdisk ------"
-./release-tools/mkbootfs $INITRAMFS_TMP_DIR > $OUTPUT_DIR/ramdisk-$IMAGE_NAME.cpio
+./release-tools/mkbootfs $INITRAMFS_TMP_DIR > $BIN_DIR/ramdisk-$IMAGE_NAME.cpio
 echo "----- Making $IMAGE_NAME ramdisk ------"
-./release-tools/minigzip < $OUTPUT_DIR/ramdisk-$IMAGE_NAME.cpio > $OUTPUT_DIR/ramdisk-$IMAGE_NAME.img
+./release-tools/minigzip < $BIN_DIR/ramdisk-$IMAGE_NAME.cpio > $BIN_DIR/ramdisk-$IMAGE_NAME.img
 echo "----- Making $IMAGE_NAME image ------"
-./release-tools/mkbootimg  --kernel $OUTPUT_DIR/kernel  --ramdisk $OUTPUT_DIR/ramdisk-$IMAGE_NAME.img --base 0x80000000 --output $OUTPUT_DIR/$IMAGE_NAME.img
+./release-tools/mkbootimg  --kernel $BIN_DIR/kernel  --ramdisk $BIN_DIR/ramdisk-$IMAGE_NAME.img --base 0x80000000 --output $BIN_DIR/$IMAGE_NAME.img
 
 # create cwm image
-cd $KERNEL_DIR/$OUTPUT_DIR
+cd $BIN_DIR
 if [ -d tmp ]; then
   rm -rf tmp
 fi
-mkdir -p tmp/META-INF/com/google/android
+mkdir -p ./tmp/META-INF/com/google/android
 cp $IMAGE_NAME.img ./tmp/
-cp $KERNEL_DIR/release-tools/update-binary $KERNEL_DIR/$OUTPUT_DIR/tmp/META-INF/com/google/android/
-sed -e "s/@VERSION/$BUILD_LOCALVERSION/g" $KERNEL_DIR/release-tools/updater-script-$IMAGE_NAME.sed > $KERNEL_DIR/$OUTPUT_DIR/tmp/META-INF/com/google/android/updater-script
+cp $KERNEL_DIR/release-tools/update-binary ./tmp/META-INF/com/google/android/
+sed -e "s/@VERSION/$BUILD_LOCALVERSION/g" $KERNEL_DIR/release-tools/updater-script-$IMAGE_NAME.sed > ./tmp/META-INF/com/google/android/updater-script
 cd tmp && zip -rq ../cwm.zip ./* && cd ../
 SIGNAPK_DIR=$KERNEL_DIR/release-tools/signapk
 java -jar $SIGNAPK_DIR/signapk.jar $SIGNAPK_DIR/testkey.x509.pem $SIGNAPK_DIR/testkey.pk8 cwm.zip $BUILD_LOCALVERSION-$IMAGE_NAME-signed.zip
 rm cwm.zip
 rm -rf tmp
-echo "  $OUTPUT_DIR/$BUILD_LOCALVERSION-$IMAGE_NAME-signed.zip"
+echo "  $BIN_DIR/$BUILD_LOCALVERSION-$IMAGE_NAME-signed.zip"
 
 cd $KERNEL_DIR
 echo ""
