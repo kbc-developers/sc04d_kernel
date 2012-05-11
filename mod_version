@@ -2,8 +2,8 @@
 # set kernel version
 ###########################################################
 TARGET_DEVICE=SC04D-ICS
-BUILD_MOD=SLRMLK
-BUILD_VERSION=V1.0.2
+BUILD_MOD=SKRMLK
+BUILD_VERSION=V1.0.3
 
 
 ###########################################################
