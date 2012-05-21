@@ -20,6 +20,9 @@
 #include <linux/mutex.h>
 #include <asm/mach-types.h>
 #include <plat/dmtimer.h>
+#ifdef CONFIG_FEATURE_TGN
+#include <linux/miscdevice.h>
+#endif
 
 #include <../../../drivers/staging/android/timed_output.h>
 
@@ -41,7 +44,56 @@ static struct vibrator {
 	struct omap_dm_timer *gptimer;
 	bool enabled;
 	unsigned gpio_en;
+#ifdef CONFIG_FEATURE_TGN
+	int vib_level;
+	int cur_vib_level;
+#endif
 } vibdata;
+
+#ifdef CONFIG_FEATURE_TGN
+static const int vib_duty_tbl[] = { 750, 850, 950, 1150, 1250, 1350, 1450, 1550, 1650, 1750, 1850, 1950, 2050, };
+#define VIB_LEVEL_MAX		(ARRAY_SIZE(vib_duty_tbl))
+#define VIB_LEVEL_MIN		(0)
+#define VIB_LEVEL_DEFAULT	(6)
+
+/* sysfs */
+static ssize_t show_vibrator_level_max(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf,"%d\n", VIB_LEVEL_MAX - 1);
+}
+
+static ssize_t show_vibrator_level(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf,"%d\n", vibdata.vib_level);
+}
+
+static ssize_t store_vibrator_level(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t len)
+{
+	int data = 0;
+	if (sscanf(buf, "%u\n", &data) == 1) {
+		if (data >= VIB_LEVEL_MAX)
+			data = VIB_LEVEL_MAX - 1;
+		else if (data < VIB_LEVEL_MIN)
+			data = VIB_LEVEL_MIN;
+		vibdata.vib_level = data;
+	} else {
+		printk(KERN_ERR "tspdrv: invalid vibrator level\n");
+	}
+	return len;
+}
+
+static DEVICE_ATTR(vibrator_level_max, S_IRUGO | S_IWUGO, show_vibrator_level_max, NULL);
+static DEVICE_ATTR(vibrator_level, S_IRUGO | S_IWUGO, show_vibrator_level, store_vibrator_level);
+
+static struct miscdevice vib_ctrl_dev = {
+	.minor =    MISC_DYNAMIC_MINOR,
+	.name =     "vib_ctrl",
+};
+#endif /* CONFIG_FEATURE_TGN */
 
 static void vibrator_off(void)
 {
@@ -72,6 +124,17 @@ static void vibrator_enable(struct timed_output_dev *dev, int value)
 
 	if (value) {
 		wake_lock(&vibdata.wklock);
+
+#ifdef CONFIG_FEATURE_TGN
+	if (vibdata.vib_level != vibdata.cur_vib_level) {
+		int duty = vib_duty_tbl[vibdata.vib_level];
+		omap_dm_timer_set_load(vibdata.gptimer, 1, -duty);
+		vibdata.gptimer->context.tldr = (unsigned int)-duty;
+		omap_dm_timer_set_match(vibdata.gptimer, 1, -duty+10);
+		vibdata.gptimer->context.tmar = (unsigned int)(-duty+10);
+		vibdata.cur_vib_level = vibdata.vib_level;
+	}
+#endif
 
 		gpio_set_value(vibdata.gpio_en, 1);
 		omap_dm_timer_start(vibdata.gptimer);
@@ -109,6 +172,11 @@ static int __init vibrator_init(void)
 {
 	int ret;
 
+#ifdef CONFIG_FEATURE_TGN
+	vibdata.vib_level = VIB_LEVEL_DEFAULT;
+	vibdata.cur_vib_level = VIB_LEVEL_DEFAULT;
+#endif
+
 	vibdata.enabled = false;
 
 	hrtimer_init(&vibdata.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
@@ -137,6 +205,21 @@ static int __init vibrator_init(void)
 	ret = timed_output_dev_register(&to_dev);
 	if (ret < 0)
 		goto err_to_dev_reg;
+
+#ifdef CONFIG_FEATURE_TGN
+	printk(KERN_DEBUG "[Vib] %s misc_register(%s)\n", __func__, vib_ctrl_dev.name);
+	ret = misc_register(&vib_ctrl_dev);
+	if (ret) {
+		pr_err("[BLN] %s misc_register(%s) fail\n", __func__, vib_ctrl_dev.name);
+		goto err_to_dev_reg;
+	}
+	if (device_create_file(vib_ctrl_dev.this_device, &dev_attr_vibrator_level_max) < 0) {
+		printk(KERN_ERR "[Vib] Failed to create device file(%s)!\n", dev_attr_vibrator_level_max.attr.name);
+	}
+	if (device_create_file(vib_ctrl_dev.this_device, &dev_attr_vibrator_level) < 0) {
+		printk(KERN_ERR "[Vib] Failed to create device file(%s)!\n", dev_attr_vibrator_level.attr.name);
+	}
+#endif
 
 	return 0;
 
