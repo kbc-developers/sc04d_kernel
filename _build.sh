@@ -48,12 +48,12 @@ fi
 
 # copy initramfs
 if [ "$BUILD_TARGET" = 'recovery' -o "$BUILD_TARGET" = 'r' ]; then
-  INITRAMFS_SRC_DIR=../sc04d_recoveryfs
-  INITRAMFS_TMP_DIR=/tmp/sc04d_recoveryfs
+  INITRAMFS_SRC_DIR=../sc04d_recovery_ramdisk
+  INITRAMFS_TMP_DIR=/tmp/sc04d_recover_ramdisk
   IMAGE_NAME=recovery
 else
-  INITRAMFS_SRC_DIR=../sc04d_rootfs
-  INITRAMFS_TMP_DIR=/tmp/sc04d_rootfs
+  INITRAMFS_SRC_DIR=../sc04d_boot_ramdisk
+  INITRAMFS_TMP_DIR=/tmp/sc04d_boot_ramdisk
   IMAGE_NAME=boot
 fi
 echo ""
